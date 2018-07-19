@@ -1,0 +1,200 @@
+---
+title: "Reproducible Research - Week 2 - Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## About the data  
+## Personal Monitoring Device Data
+This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+The original source can be downloaded here:  <https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip>
+
+## 1 Loading and tidying the data
+
+Loading from the unzipped version:
+```{r loaddata}
+
+if(!file.exists("getdata-projectfiles-UCI HAR Dataset.zip")) {
+        tz <- tempfile()
+        download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",tz)
+        unzip(tz)
+        unlink(tz)
+}
+
+d<-read.csv("activity.csv", header = TRUE,fill=TRUE,blank.lines.skip = TRUE,stringsAsFactors =FALSE )
+
+```
+
+```{r showdata}
+str(d)
+summary(d)
+```
+
+Tidying the data
+
+* Add a placeholder column for weekend to be used later
+* Change the date column data type to Date
+
+    
+```{r tidydata}
+td<-d
+weekend<-td$date
+td<-cbind(td,weekend)
+td$date<-as.Date(td$date, format= "%Y-%m-%d")
+
+```
+
+```{r showtd }
+str(td)
+summary(td)
+
+```
+
+## 2 Histogram of Steps per Day
+
+Aggregate the steps per day  
+
+```{r prepstepshist }
+total_steps_day <- aggregate(steps ~ date, td, sum)
+str(total_steps_day)
+summary(total_steps_day)
+
+```
+
+Plot the histogram
+
+```{r stephistogram,fig.width=12}
+hist(total_steps_day$steps,main="Total Steps per Day",xlab="Steps", col="gray")
+
+```
+
+## 3 Mean and median number of steps taken each day 
+
+Calculate the Mean and Median Steps per Day  
+
+```{r stepmeanmed }
+spdmean <- mean(total_steps_day$steps)
+spdmedian <- median(total_steps_day$steps)
+
+```
+
+Results:  
+The mean Steps per Day is `r spdmean`.  
+The median Steps per Day is `r spdmedian`.  
+
+
+## 4 Time series plot of the average number of steps taken
+
+Make a time series plot type="l" of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)  
+
+Aggregate the steps per Interval
+
+```{r prepstepinterval }
+total_steps_interval <- aggregate(steps ~ interval, td, mean)
+str(total_steps_interval)
+summary(total_steps_interval)
+
+```
+
+Plot the interval
+
+```{r intervalplot,fig.width=12}
+plot(total_steps_interval$interval,total_steps_interval$steps, type = "l",ylab="Avg Steps",xlab="Interval")
+
+```
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?  
+```{r maxstepsinterval }
+spimax <- which.max(total_steps_interval$steps)
+
+im<-total_steps_interval[spimax,1]
+```
+Results:  
+`r im`.  
+
+## 6 Find and impute missing step values
+```{r}
+##get the length / # of the missing step values
+lm<-length(which(is.na(td$steps)))
+
+```
+
+There are `r lm` missing values in the step column.
+```{r}
+##  fill in the missing steps with the average / mean step for that interval
+id<-transform(td,steps=ifelse(is.na(td$steps)
+                              ,total_steps_interval$steps[match(td$interval, total_steps_interval$interval)]
+                              ,td$steps)
+                )
+```
+
+## 7 Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r prepstepshistforid }
+total_steps_day_id <- aggregate(steps ~ date, id, sum)
+str(total_steps_day_id)
+summary(total_steps_day_id)
+
+```
+
+Plot the histogram
+
+```{r stephistogramid,fig.width=12}
+hist(total_steps_day_id$steps,main="Total Steps per Day with Imputed Data",xlab="Steps", col="gray")
+
+```
+
+Calculate the Mean and Median Steps per Day with the Imputed Data
+
+```{r stepmeanmedid }
+spdidmean <- mean(total_steps_day_id$steps)
+spdidmedian <- median(total_steps_day_id$steps)
+
+```
+
+Results:  
+The mean Steps per Day (Imputed) is `r spdidmean`.  
+The median Steps per Day (Imputed) is `r spdidmedian`.  
+  
+What is the difference between the mean and median values of the original and the imputed data
+
+```{r }
+mdiff<-spdmean-spdidmean  
+meddiff<-spdmedian-spdidmedian  
+
+
+```
+
+
+* The difference between the original and imputed mean number of daily steps is `r mdiff`.  
+
+* The difference between the original and imputed median number of daily steps is `r meddiff`.  
+
+
+## 8 Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+Calculate whether the date is a weekend or not
+```{r}
+##calculate weekend
+library(chron)
+id<-transform(id,weekend=ifelse(is.weekend(td$date)
+                              ,"weekend"
+                              ,"weekday")
+                )
+##calculate avg steps by interval and weekend
+total_steps_interval_id <- aggregate(steps ~ interval + weekend, id, mean)
+
+```
+
+```{r fig.width=12}
+
+library(lattice)
+
+xyplot(total_steps_interval_id$steps ~ total_steps_interval_id$interval|total_steps_interval_id$weekend, main="Avg steps per day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
+
+```
+
