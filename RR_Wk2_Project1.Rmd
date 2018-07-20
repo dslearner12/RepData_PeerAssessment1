@@ -197,4 +197,3 @@ library(lattice)
 xyplot(total_steps_interval_id$steps ~ total_steps_interval_id$interval|total_steps_interval_id$weekend, main="Avg steps per day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
 
 ```
-
